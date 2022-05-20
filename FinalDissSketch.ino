@@ -1,26 +1,17 @@
-/*
- * This code will configure ESP8266 in SoftAP mode and will act as a web server for all the connecting devices. It will then turn On/Off 4 LEDs as per input from the connected station devices.
- */
+// Includes libraries
 #include <SPI.h>
 #include <MFRC522.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
 
 
-#define RST_PIN         D0           // Configurable, see typical pin layout above
+#define RST_PIN         D0           // Defines pins used by the microcontroller to communicate with the MRFC522 Module
 #define SS_PIN          D8 
-#define NEW_UID {0xDE, 0xAD, 0xBE, 0xEF}
 
 
 
 
 MFRC522 mfrc522(SS_PIN, RST_PIN);
-
-
-
-
-
-
 
 
 
@@ -38,9 +29,13 @@ ESP8266WebServer server(80);
 //Specifying the boolean variables indicating the Attack Modes.
 bool read_status=false, clone_status=false;
 
+//Defines the variables needed to manipulate the UIDs
 String nout = "";
 String str = "";
 bool written;
+
+
+
 void setup() {
 
   
@@ -138,32 +133,19 @@ void loop() {
  
 }
 
-String dump_byte_array(byte *buffer, byte bufferSize) {
+String byte_array_engine(byte *buffer, byte bufferSize) {
  str = "";
   for (byte i = 0; i < bufferSize; i++) {
     str = str + ((((buffer[i] & 0xF0) >> 4) <= 9) ? (char)(((buffer[i] & 0xF0) >> 4) + '0') : (char)(((buffer[i] & 0xF0) >> 4) + 'A' - 10));
     str = str + (((buffer[i] & 0x0F) <= 9) ? (char)((buffer[i] & 0x0F) + '0') : (char)((buffer[i] & 0x0F) + 'A' - 10));
-    //if (i < (bufferSize - 1)) str = str + ' '; //uncomment if you want a space between each HEX number
   }
-  Serial.println(str);           //<- just for debug
+  Serial.println(str);           //For debugging
   return str;
 }
 
-//void otherDumpByteArray(const byte * byteArray, const byte arraySize)
-//{
-//
-//for (int i = 0; i < arraySize; i++)
-//{
-//  Serial.print("0x");
-//  if (byteArray[i] < 0x10)
-//    Serial.print("0");
-//  Serial.print(byteArray[i], HEX);
-//  Serial.print(", ");
-//}
-//Serial.println();
-//}
 
-void hexCharacterStringToBytes(byte *byteArray, const char *hexString)
+
+void hexCharacterStringToBytes(byte *byteArray, const char *hexString)  //This code takes an array of characters and turns it to an array of hex bytes
 {
   bool oddLength = strlen(hexString) & 1;
 
@@ -224,7 +206,7 @@ byte nibble(char c)
   return 0;  // Not a valid hexadecimal character
 }
 
-void readUID(){
+void readUID(){ //This function reads the card
   
   //Serial.println("Insert card...");
   // Look for new cards
@@ -232,33 +214,29 @@ void readUID(){
     return;
   }
 
-    // Show some details of the PICC (that is: the tag/card)
-    Serial.print(F("Card UID:"));
-    dump_byte_array(mfrc522.uid.uidByte, mfrc522.uid.size);
+    // Show details of the card
+    //Serial.print(F("UID:"));
+    byte_array_engine(mfrc522.uid.uidByte, mfrc522.uid.size);
   
    mfrc522.PICC_DumpToSerial(&(mfrc522.uid));
     
 }  
 
-bool cloneUID(){
+bool cloneUID(){//This function takes the UID read by the readCard() function and writes it to another card.
 
-  
-  byte lol[4]={ 0 };
+ 
+  byte uidArray[4]={ 0 };
   
   char buf[16];
   str.toCharArray(buf, 16);
   
-  hexCharacterStringToBytes(lol, buf);
-  //otherDumpByteArray(lol , 4);
+  hexCharacterStringToBytes(uidArray, buf);
+  //otherDumpByteArray(uidArray , 4);
   
-//  Serial.println("Size of lol array:");
-//  for (int i = 0; i < 4; i++) Serial.println(lol[i], HEX);
-//    Serial.println(sizeof(lol));
-//  
-//  byte newUid[] = NEW_UID;
-//    Serial.println("Size of test array:");
-//   for (int i = 0; i < 4; i++) Serial.println(newUid[i], HEX);
-//    Serial.println(sizeof(newUid));
+//  Serial.println("Size of uid array:");
+//  for (int i = 0; i < 4; i++) Serial.println(uidArray[i], HEX); //Debugging code
+//    Serial.println(sizeof(uidArray));
+
 
     
  if ( ! mfrc522.PICC_IsNewCardPresent() || ! mfrc522.PICC_ReadCardSerial() ) {
@@ -267,7 +245,7 @@ bool cloneUID(){
     
   }
 
-  if ( mfrc522.MIFARE_SetUid(lol, (byte)4, true) ) {
+  if ( mfrc522.MIFARE_SetUid(uidArray, (byte)4, true) ) {
     Serial.println(F("Wrote new UID to card."));
     return written = true;
   } else { 
@@ -287,9 +265,6 @@ bool cloneUID(){
 }
 
 
-//String showOnPage(){
-//  
-//}
 
 
 void handle_OnConnect()
